@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend (lint + typecheck + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: dummy
+          VITE_SUPABASE_PROJECT_ID: dummy
+        run: npm run build
+
+  edge-functions:
+    name: Edge Functions (deno check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Deno check all functions
+        run: |
+          set -e
+          shopt -s nullglob
+          failed=0
+          for f in supabase/functions/*/index.ts; do
+            echo "::group::deno check $f"
+            if ! deno check --no-lock "$f"; then
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $failed
+
+      - name: Deno check shared modules
+        run: |
+          set -e
+          shopt -s nullglob
+          for f in supabase/functions/_shared/*.ts; do
+            echo "::group::deno check $f"
+            deno check --no-lock "$f" || true
+            echo "::endgroup::"
+          done
