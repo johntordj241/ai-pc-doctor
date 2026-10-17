@@ -2,16 +2,16 @@
 
 > Comprenez enfin pourquoi votre ordinateur ralentit — diagnostic IA en temps réel.
 
-**Statut : Release Candidate** · Version `0.9.0-rc.1`
+**Version du dépôt : `1.0.0`** · Le fonctionnement complet et la signature des installateurs restent à vérifier indépendamment.
 
-AI PC Doctor est une application desktop (Electron) qui analyse votre PC en temps réel, détecte automatiquement les causes de ralentissement grâce à l'intelligence artificielle, et génère des rapports PDF téléchargeables. Toutes les analyses sont effectuées **localement** — vos données système ne quittent jamais votre machine, sauf si vous choisissez explicitement de les synchroniser avec votre compte cloud.
+AI PC Doctor est une application desktop (Electron) qui analyse votre PC en temps réel, détecte automatiquement les causes de ralentissement grâce à l'intelligence artificielle, et génère des rapports PDF téléchargeables. La collecte des métriques est effectuée **localement**. Lorsque vous lancez un diagnostic IA, un instantané système est transmis à une fonction serveur, puis au fournisseur IA configuré. Le diagnostic IA nécessite une connexion réseau et une authentification. La conservation locale de l'historique ne signifie pas que le diagnostic est exécuté hors ligne.
 
 ---
 
 ## Aperçu
 
 - **Analyse temps réel** : CPU, RAM, disques, réseau, températures, processus.
-- **Diagnostic IA** : Un modèle Gemini 3 Flash identifie les goulots d'étranglement et propose des actions concrètes.
+- **Diagnostic IA** : Le fournisseur configuré analyse les métriques et propose des causes possibles et des actions à vérifier. OpenAI est prioritaire lorsqu'il est configuré ; Lovable AI est utilisé à défaut ou en repli.
 - **Alertes intelligentes** : Seuils configurables avec recommandations personnalisées.
 - **Historique** : Conservation locale des diagnostics (migrable vers SQLite).
 - **Rapports PDF** : Export professionnel des résultats.
@@ -27,7 +27,7 @@ AI PC Doctor est une application desktop (Electron) qui analyse votre PC en temp
 | Desktop | Electron 33, `systeminformation` v5 |
 | Backend | TanStack Server Functions (Cloudflare Workers) |
 | Auth | Supabase Auth (OAuth Google) |
-| IA | Lovable AI Gateway — Gemini 3 Flash |
+| IA | OpenAI si configuré ; Lovable AI Gateway à défaut ou en repli |
 | PDF | jsPDF (génération côté client) |
 
 ---
@@ -42,8 +42,8 @@ AI PC Doctor est une application desktop (Electron) qui analyse votre PC en temp
 ### Installation
 
 ```bash
-git clone <repo-url>
-cd <repo-folder>
+git clone https://github.com/johntordj241/ai-pc-doctor.git
+cd ai-pc-doctor
 bun install          # ou: npm install
 ```
 
@@ -94,7 +94,7 @@ npm run electron:dev       # fenêtre native avec vraies métriques
 └─────────────────┘
 ```
 
-Les métriques système (CPU, RAM, disques, températures, processus) sont collectées **localement** par `systeminformation` dans le processus Electron principal. Elles transitent vers le renderer via un pont IPC sécurisé. Le diagnostic IA est déclenché via une `server function` distante, mais le serveur **rejette** tout snapshot qui ne provient pas d'Electron — il est impossible de lancer l'IA sur des données simulées.
+Les métriques système (CPU, RAM, disques, températures, processus) sont collectées **localement** par `systeminformation` dans le processus Electron principal. Elles transitent vers le renderer via un pont IPC sécurisé. Le diagnostic IA est déclenché via une `server function` distante, avec une vérification du champ `source === "electron"`. Ce champ fourni par le client est un garde-fou applicatif ; il ne constitue pas une attestation cryptographique de la provenance des métriques.
 
 ---
 
@@ -104,9 +104,9 @@ Les métriques système (CPU, RAM, disques, températures, processus) sont colle
 - **Context isolation** : Le renderer n'a aucun accès direct à Node.js.
 - **IPC minimal** : Seules les métriques système et les actions autorisées (PDF, DB) traversent le pont.
 - **Blocage IA en mode démo** : Bouton diagnostique désactivé dans le navigateur ; guard côté serveur.
-- **Données personnelles** : Pas de télématrie, pas de traçage. Les snapshots restent sur la machine.
+- **Données système** : Les métriques sont collectées localement, mais le snapshot est transmis au serveur et au fournisseur IA lors d'un diagnostic. Évitez d'y inclure des informations confidentielles.
 
-### Signature des binaires (Production Ready)
+### Signature des binaires (à vérifier avant distribution)
 
 | Plateforme | Outil | Coût indicatif |
 |---|---|---|
@@ -142,4 +142,4 @@ Propriétaire — tous droits réservés.
 
 ---
 
-*Dernière mise à jour : Juin 2026 · Release Candidate*
+*Présentation vérifiée dans le code le 17 octobre 2026. Aucun test fonctionnel complet ni audit de sécurité exhaustif n'est attesté par cette mise à jour.*
